@@ -1,0 +1,67 @@
+---
+name: CI
+
+on:
+  pull_request:
+    branches: [master]
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  action:
+    environment:
+      ${{ github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name != github.repository &&
+      'external' || 'internal' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Release
+        id: setup-release
+        uses: LizardByte/setup-release-action@v2024.520.181643
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}  # can use GITHUB_TOKEN for read-only access
+
+      - name: Set action variables
+        id: vars
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            changelog_branch=pr-changelogs
+            changelog_file=PR-${{ github.event.pull_request.number }}-CHANGELOG.md
+          else
+            changelog_branch=changelog
+            changelog_file=CHANGELOG.md
+          fi
+
+          # set outputs
+          echo "changelog_branch=$changelog_branch" >> $GITHUB_OUTPUT
+          echo "changelog_file=$changelog_file" >> $GITHUB_OUTPUT
+
+      - name: Run Action
+        id: action
+        uses: ./
+        with:
+          changelogBranch: ${{ steps.vars.outputs.changelog_branch }}
+          changelogFile: ${{ steps.vars.outputs.changelog_file }}
+          token: ${{ secrets.GH_BOT_TOKEN }}
+
+      - name: Create/Update GitHub Release
+        if: ${{ steps.setup-release.outputs.publish_release == 'true' }}
+        uses: LizardByte/create-release-action@v2024.520.180003
+        with:
+          allowUpdates: false
+          artifacts: ""
+          discussionCategory: announcements
+          generateReleaseNotes: true
+          name: ${{ steps.setup-release.outputs.release_tag }}
+          prerelease: true
+          tag: ${{ steps.setup-release.outputs.release_tag }}
+          token: ${{ secrets.GH_BOT_TOKEN }}
