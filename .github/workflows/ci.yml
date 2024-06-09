@@ -26,7 +26,7 @@ jobs:
 
       - name: Setup Release
         id: setup-release
-        uses: LizardByte/setup-release-action@v2024.520.181643
+        uses: LizardByte/setup-release-action@v2024.608.210128
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}  # can use GITHUB_TOKEN for read-only access
 
@@ -55,12 +55,13 @@ jobs:
 
       - name: Create/Update GitHub Release
         if: ${{ steps.setup-release.outputs.publish_release == 'true' }}
-        uses: LizardByte/create-release-action@v2024.520.180003
+        uses: LizardByte/create-release-action@v2024.608.160245
         with:
           allowUpdates: false
-          artifacts: ""
+          artifacts: ''
+          body: ${{ steps.setup-release.outputs.release_body }}
           discussionCategory: announcements
-          generateReleaseNotes: true
+          generateReleaseNotes: ${{ steps.setup-release.outputs.release_generate_notes }}
           name: ${{ steps.setup-release.outputs.release_tag }}
           prerelease: true
           tag: ${{ steps.setup-release.outputs.release_tag }}
